@@ -19,12 +19,6 @@
 #include <QStyle>
 #include <QFileInfo>
 
-#include <BRepPrimAPI_MakeBox.hxx>
-#include <BRepPrimAPI_MakeCylinder.hxx>
-#include <BRepPrimAPI_MakeSphere.hxx>
-#include <BRepPrimAPI_MakeCone.hxx>
-#include <BRepPrimAPI_MakeTorus.hxx>
-#include <BRepPrimAPI_MakeWedge.hxx>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -368,26 +362,7 @@ void MainWindow::createPrimitive(const QString& type)
     auto params = PrimitiveDialog::getParameters(type, this);
     if (params.isEmpty()) return;
 
-    TopoDS_Shape shape;
-
-    if (type == "Box") {
-        shape = BRepPrimAPI_MakeBox(
-            params["Width (X)"], params["Depth (Y)"], params["Height (Z)"]).Shape();
-    } else if (type == "Cylinder") {
-        shape = BRepPrimAPI_MakeCylinder(params["Radius"], params["Height"]).Shape();
-    } else if (type == "Sphere") {
-        shape = BRepPrimAPI_MakeSphere(params["Radius"]).Shape();
-    } else if (type == "Cone") {
-        shape = BRepPrimAPI_MakeCone(
-            params["Bottom Radius"], params["Top Radius"], params["Height"]).Shape();
-    } else if (type == "Torus") {
-        shape = BRepPrimAPI_MakeTorus(params["Major Radius"], params["Minor Radius"]).Shape();
-    } else if (type == "Wedge") {
-        shape = BRepPrimAPI_MakeWedge(
-            params["Width (X)"], params["Height (Z)"], params["Depth (Y)"],
-            params["Top Width (Xmin)"]).Shape();
-    }
-
+    TopoDS_Shape shape = Document::rebuildShape(type, params);
     if (shape.IsNull()) return;
 
     m_document->addShape(type, params, shape);

@@ -2,9 +2,13 @@
 #define PROPERTYPANEL_H
 
 #include <QWidget>
+#include <QMap>
 
 class QFormLayout;
 class QLabel;
+class QLineEdit;
+class QPushButton;
+class QDoubleSpinBox;
 class Document;
 
 class PropertyPanel : public QWidget
@@ -19,12 +23,24 @@ public:
     void clearPanel();
 
 private:
-    void clearFields();
+    void clearParamFields();
+    void onNameChanged();
+    void onColorClicked();
+    void onParamChanged();
+    void updateColorButton(const QColor& color);
+
+    static QStringList editableTypes();
 
     Document* m_document = nullptr;
+    int m_currentShapeId = -1;
+    bool m_updatingUI = false;
+
     QFormLayout* m_formLayout;
-    QLabel* m_nameLabel;
+    QLineEdit* m_nameEdit;
     QLabel* m_typeLabel;
+    QPushButton* m_colorButton;
+
+    QMap<QString, QDoubleSpinBox*> m_paramSpinBoxes;
 };
 
 #endif // PROPERTYPANEL_H
