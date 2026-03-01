@@ -5,6 +5,7 @@
 #include <QList>
 #include <QMap>
 #include <QString>
+#include <QColor>
 
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
@@ -18,6 +19,7 @@ struct ShapeEntry {
     QString name;
     QString type;
     QMap<QString, double> params;
+    QColor color = QColor(180, 180, 220);
     Handle(AIS_Shape) aisShape;
     TopoDS_Shape topoShape;
 };
@@ -53,6 +55,12 @@ public:
 
     // Boolean operations
     int booleanOperation(int id1, int id2, BooleanType type);
+
+    // Parametric editing
+    void updateShapeParams(int id, const QMap<QString, double>& newParams);
+    void setShapeColor(int id, const QColor& color);
+    void renameShape(int id, const QString& newName);
+    static TopoDS_Shape rebuildShape(const QString& type, const QMap<QString, double>& params);
 
     // Fillet / Chamfer
     int filletShape(int id, double radius);

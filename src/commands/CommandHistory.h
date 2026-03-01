@@ -4,6 +4,7 @@
 #include <QList>
 #include <QMap>
 #include <QString>
+#include <QColor>
 
 #include <TopoDS_Shape.hxx>
 
@@ -15,6 +16,7 @@ struct Snapshot {
         QString name;
         QString type;
         QMap<QString, double> params;
+        QColor color;
         TopoDS_Shape topoShape;
     };
 
