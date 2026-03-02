@@ -117,13 +117,15 @@ void OccView::mousePressEvent(QMouseEvent* event)
 {
     m_clickPos = event->pos();
 
-    if (event->button() == Qt::MiddleButton) {
+    if (event->button() == Qt::RightButton) {
         if (event->modifiers() & Qt::ShiftModifier) {
-            m_currentAction = CurAction::Pan;
+            m_currentAction = CurAction::Zoom;
         } else {
             m_currentAction = CurAction::Rotation;
             m_view->StartRotation(event->pos().x(), event->pos().y());
         }
+    } else if (event->button() == Qt::MiddleButton) {
+        m_currentAction = CurAction::Pan;
     } else if (event->button() == Qt::LeftButton) {
         m_context->MoveTo(event->pos().x(), event->pos().y(), m_view, Standard_True);
         if (event->modifiers() & (Qt::MetaModifier | Qt::ShiftModifier)) {
