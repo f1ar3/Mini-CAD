@@ -27,6 +27,7 @@ private:
     void onNameChanged();
     void onColorClicked();
     void onParamChanged();
+    void onPositionChanged();
     void updateColorButton(const QColor& color);
 
     static QStringList editableTypes();
@@ -39,6 +40,10 @@ private:
     QLineEdit* m_nameEdit;
     QLabel* m_typeLabel;
     QPushButton* m_colorButton;
+
+    QDoubleSpinBox* m_posX;
+    QDoubleSpinBox* m_posY;
+    QDoubleSpinBox* m_posZ;
 
     QMap<QString, QDoubleSpinBox*> m_paramSpinBoxes;
 };

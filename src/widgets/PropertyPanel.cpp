@@ -59,6 +59,28 @@ PropertyPanel::PropertyPanel(QWidget* parent)
 
     mainLayout->addWidget(infoGroup);
 
+    // --- Позиция ---
+    auto* posGroup = new QGroupBox(tr("Позиция"), this);
+    auto* posLayout = new QFormLayout(posGroup);
+
+    auto makePosSpin = [this]() {
+        auto* spin = new QDoubleSpinBox(this);
+        spin->setRange(-100000.0, 100000.0);
+        spin->setDecimals(2);
+        spin->setSuffix(tr(" мм"));
+        spin->setValue(0.0);
+        connect(spin, &QDoubleSpinBox::editingFinished, this, &PropertyPanel::onPositionChanged);
+        return spin;
+    };
+
+    m_posX = makePosSpin();
+    m_posY = makePosSpin();
+    m_posZ = makePosSpin();
+    posLayout->addRow("X:", m_posX);
+    posLayout->addRow("Y:", m_posY);
+    posLayout->addRow("Z:", m_posZ);
+    mainLayout->addWidget(posGroup);
+
     // --- Параметры ---
     auto* paramGroup = new QGroupBox(tr("Параметры"), this);
     m_formLayout = new QFormLayout(paramGroup);
@@ -100,6 +122,13 @@ void PropertyPanel::showShape(int id)
     updateColorButton(entry->color);
     m_colorButton->setEnabled(true);
 
+    m_posX->setValue(entry->posX);
+    m_posY->setValue(entry->posY);
+    m_posZ->setValue(entry->posZ);
+    m_posX->setEnabled(true);
+    m_posY->setEnabled(true);
+    m_posZ->setEnabled(true);
+
     bool editable = editableTypes().contains(entry->type);
     auto labels = paramLabels();
 
@@ -133,6 +162,12 @@ void PropertyPanel::clearPanel()
     m_typeLabel->setText("-");
     updateColorButton(QColor(180, 180, 220));
     m_colorButton->setEnabled(false);
+    m_posX->setValue(0.0);
+    m_posY->setValue(0.0);
+    m_posZ->setValue(0.0);
+    m_posX->setEnabled(false);
+    m_posY->setEnabled(false);
+    m_posZ->setEnabled(false);
     clearParamFields();
 }
 
@@ -176,6 +211,13 @@ void PropertyPanel::onParamChanged()
     }
 
     m_document->updateShapeParams(m_currentShapeId, newParams);
+}
+
+void PropertyPanel::onPositionChanged()
+{
+    if (m_updatingUI || !m_document || m_currentShapeId < 0) return;
+    m_document->setShapePosition(m_currentShapeId,
+                                  m_posX->value(), m_posY->value(), m_posZ->value());
 }
 
 void PropertyPanel::updateColorButton(const QColor& color)
