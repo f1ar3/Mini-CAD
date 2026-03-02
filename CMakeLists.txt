@@ -86,3 +86,7 @@ install(TARGETS Qt_Project
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(Qt_Project)
 endif()
+
+# Tests
+enable_testing()
+add_subdirectory(tests)
