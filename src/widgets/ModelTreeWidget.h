@@ -22,10 +22,12 @@ signals:
 
 private slots:
     void onItemClicked(QTreeWidgetItem* item, int column);
+    void onItemChanged(QTreeWidgetItem* item, int column);
     void onCustomContextMenu(const QPoint& pos);
 
 private:
     Document* m_document = nullptr;
+    bool m_rebuilding = false;
 };
 
 #endif // MODELTREEWIDGET_H

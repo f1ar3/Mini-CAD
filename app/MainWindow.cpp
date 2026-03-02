@@ -447,6 +447,7 @@ void MainWindow::onCreateCone()     { createPrimitive("Cone"); }
 void MainWindow::onCreateTorus()    { createPrimitive("Torus"); }
 void MainWindow::onCreateWedge()    { createPrimitive("Wedge"); }
 
+
 // ============================================================
 //  Трансформации
 // ============================================================

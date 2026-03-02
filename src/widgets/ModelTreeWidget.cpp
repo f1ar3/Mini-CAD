@@ -12,6 +12,7 @@ ModelTreeWidget::ModelTreeWidget(QWidget* parent)
     setContextMenuPolicy(Qt::CustomContextMenu);
 
     connect(this, &QTreeWidget::itemClicked, this, &ModelTreeWidget::onItemClicked);
+    connect(this, &QTreeWidget::itemChanged, this, &ModelTreeWidget::onItemChanged);
     connect(this, &QTreeWidget::customContextMenuRequested, this, &ModelTreeWidget::onCustomContextMenu);
 }
 
@@ -25,14 +26,20 @@ void ModelTreeWidget::setDocument(Document* doc)
 
 void ModelTreeWidget::rebuild()
 {
+    m_rebuilding = true;
     clear();
-    if (!m_document) return;
+    if (!m_document) {
+        m_rebuilding = false;
+        return;
+    }
 
     for (const auto& entry : m_document->shapes()) {
         auto* item = new QTreeWidgetItem(this);
         item->setText(0, QString("%1 [%2]").arg(entry.name, entry.type));
         item->setData(0, Qt::UserRole, entry.id);
+        item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
     }
+    m_rebuilding = false;
 }
 
 void ModelTreeWidget::selectShapeById(int id)
@@ -54,32 +61,44 @@ void ModelTreeWidget::onItemClicked(QTreeWidgetItem* item, int /*column*/)
     emit shapeSelected(id);
 }
 
+void ModelTreeWidget::onItemChanged(QTreeWidgetItem* item, int column)
+{
+    if (m_rebuilding || !item || !m_document || column != 0) return;
+
+    int id = item->data(0, Qt::UserRole).toInt();
+    bool visible = (item->checkState(0) == Qt::Checked);
+    m_document->setShapeVisible(id, visible);
+}
+
 void ModelTreeWidget::onCustomContextMenu(const QPoint& pos)
 {
     auto* item = itemAt(pos);
     if (!item || !m_document) return;
 
     int id = item->data(0, Qt::UserRole).toInt();
+    ShapeEntry* entry = m_document->findShape(id);
+    if (!entry) return;
 
     QMenu menu(this);
 
+    QAction* visAct = menu.addAction(entry->visible ? tr("Скрыть") : tr("Показать"));
+    menu.addSeparator();
     QAction* renameAct = menu.addAction(tr("Переименовать..."));
     QAction* deleteAct = menu.addAction(tr("Удалить"));
 
     QAction* chosen = menu.exec(mapToGlobal(pos));
 
-    if (chosen == deleteAct) {
+    if (chosen == visAct) {
+        m_document->setShapeVisible(id, !entry->visible);
+    } else if (chosen == deleteAct) {
         emit deleteRequested(id);
     } else if (chosen == renameAct) {
-        ShapeEntry* entry = m_document->findShape(id);
-        if (!entry) return;
         bool ok;
         QString newName = QInputDialog::getText(this, tr("Переименовать"),
                                                  tr("Новое имя:"),
                                                  QLineEdit::Normal, entry->name, &ok);
         if (ok && !newName.isEmpty()) {
-            entry->name = newName;
-            rebuild();
+            m_document->renameShape(id, newName);
         }
     }
 }
