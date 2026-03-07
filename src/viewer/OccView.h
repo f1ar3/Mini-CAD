@@ -6,6 +6,7 @@
 #include <AIS_InteractiveContext.hxx>
 #include <V3d_View.hxx>
 #include <V3d_Viewer.hxx>
+#include <gp_Pnt.hxx>
 
 /**
  * @brief Виджет 3D-отображения на базе OpenCascade V3d.
@@ -52,6 +53,12 @@ public:
 signals:
     /** @brief Изменилось выделение объектов в 3D-виде. */
     void selectionChanged();
+    /** @brief Начало перетаскивания фигуры. */
+    void dragStarted(int shapeId);
+    /** @brief Промежуточное перемещение при drag. */
+    void dragMoved(int shapeId, double dx, double dy, double dz);
+    /** @brief Завершение перетаскивания. */
+    void dragFinished(int shapeId);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -72,12 +79,20 @@ private:
         Nothing,
         Rotation,
         Pan,
-        Zoom
+        Zoom,
+        Drag
     };
+
+    int findShapeIdUnderCursor() const;
 
     CurAction m_currentAction = CurAction::Nothing;
     QPoint    m_clickPos;
     bool      m_initialized = false;
+
+    // Drag state
+    int       m_dragShapeId = -1;
+    bool      m_dragging = false;
+    gp_Pnt    m_dragPrev3d;
 };
 
 #endif // OCCVIEW_H

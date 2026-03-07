@@ -7,6 +7,9 @@
 #include "../src/widgets/BooleanDialog.h"
 #include "../src/widgets/ModelTreeWidget.h"
 #include "../src/widgets/PropertyPanel.h"
+#include "../src/widgets/MeasureDialog.h"
+#include "../src/widgets/PatternDialog.h"
+#include "../src/widgets/MirrorDialog.h"
 
 #include <QMenuBar>
 #include <QToolBar>
@@ -53,6 +56,24 @@ void MainWindow::initDocument()
 
     connect(m_document, &Document::selectionChanged, this, &MainWindow::onSelectionChanged);
     connect(m_occView, &OccView::selectionChanged, this, &MainWindow::onViewerSelectionChanged);
+
+    // Drag signals
+    connect(m_occView, &OccView::dragStarted, this, [this](int /*viewId*/) {
+        if (!m_document) return;
+        m_draggedShapeId = m_document->selectedShapeId();
+        if (m_draggedShapeId >= 0) m_document->beginDrag(m_draggedShapeId);
+    });
+    connect(m_occView, &OccView::dragMoved, this, [this](int /*viewId*/, double dx, double dy, double dz) {
+        if (!m_document || m_draggedShapeId < 0) return;
+        m_document->dragShape(m_draggedShapeId, dx, dy, dz);
+    });
+    connect(m_occView, &OccView::dragFinished, this, [this](int /*viewId*/) {
+        if (!m_document || m_draggedShapeId < 0) return;
+        m_document->finishDrag(m_draggedShapeId);
+        m_propertyPanel->showShape(m_draggedShapeId);
+        statusBar()->showMessage(tr("Фигура перемещена"));
+        m_draggedShapeId = -1;
+    });
 
     // Undo / Redo
     connect(m_actUndo, &QAction::triggered, this, [this]() {
@@ -203,6 +224,31 @@ void MainWindow::createActions()
     m_actChamfer = new QAction(tr("Фаска..."), this);
     m_actChamfer->setToolTip(tr("Снять фаску со всех рёбер выделенной фигуры"));
     connect(m_actChamfer, &QAction::triggered, this, &MainWindow::onChamfer);
+
+    // --- Измерение / Массив / Зеркало ---
+    m_actMeasure = new QAction(tr("Измерения..."), this);
+    m_actMeasure->setShortcut(tr("M"));
+    m_actMeasure->setToolTip(tr("Объём, площадь и габариты фигуры (M)"));
+    connect(m_actMeasure, &QAction::triggered, this, &MainWindow::onMeasure);
+
+    m_actPattern = new QAction(tr("Массив..."), this);
+    m_actPattern->setShortcut(tr("P"));
+    m_actPattern->setToolTip(tr("Линейный или круговой массив копий (P)"));
+    connect(m_actPattern, &QAction::triggered, this, &MainWindow::onPattern);
+
+    m_actMirror = new QAction(tr("Зеркало..."), this);
+    m_actMirror->setToolTip(tr("Зеркальное отражение фигуры"));
+    connect(m_actMirror, &QAction::triggered, this, &MainWindow::onMirror);
+
+    m_actDuplicate = new QAction(tr("Дублировать"), this);
+    m_actDuplicate->setShortcut(QKeySequence(tr("Ctrl+D")));
+    m_actDuplicate->setToolTip(tr("Дублировать выделенную фигуру (Ctrl+D)"));
+    connect(m_actDuplicate, &QAction::triggered, this, &MainWindow::onDuplicate);
+
+    m_actToggleVisibility = new QAction(tr("Скрыть/Показать"), this);
+    m_actToggleVisibility->setShortcut(tr("H"));
+    m_actToggleVisibility->setToolTip(tr("Скрыть или показать выделенную фигуру (H)"));
+    connect(m_actToggleVisibility, &QAction::triggered, this, &MainWindow::onToggleVisibility);
 }
 
 // ============================================================
@@ -224,6 +270,7 @@ void MainWindow::createMenus()
     editMenu->addAction(m_actUndo);
     editMenu->addAction(m_actRedo);
     editMenu->addSeparator();
+    editMenu->addAction(m_actDuplicate);
     editMenu->addAction(m_actDelete);
 
     // Вид
@@ -234,6 +281,8 @@ void MainWindow::createMenus()
     viewMenu->addAction(m_actViewTop);
     viewMenu->addAction(m_actViewRight);
     viewMenu->addAction(m_actViewIso);
+    viewMenu->addSeparator();
+    viewMenu->addAction(m_actToggleVisibility);
 
     // Моделирование
     QMenu* modelMenu = menuBar()->addMenu(tr("&Моделирование"));
@@ -250,6 +299,10 @@ void MainWindow::createMenus()
     modelMenu->addSeparator();
     modelMenu->addAction(m_actFillet);
     modelMenu->addAction(m_actChamfer);
+    modelMenu->addSeparator();
+    modelMenu->addAction(m_actMeasure);
+    modelMenu->addAction(m_actPattern);
+    modelMenu->addAction(m_actMirror);
 
     // Трансформация
     QMenu* transformMenu = menuBar()->addMenu(tr("&Трансформация"));
@@ -302,6 +355,9 @@ void MainWindow::createToolBars()
     opsBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
     opsBar->addAction(m_actFillet);
     opsBar->addAction(m_actChamfer);
+    opsBar->addAction(m_actMeasure);
+    opsBar->addAction(m_actPattern);
+    opsBar->addAction(m_actMirror);
 
     // Трансформация
     QToolBar* transBar = addToolBar(tr("Трансформация"));
@@ -309,6 +365,7 @@ void MainWindow::createToolBars()
     transBar->addAction(m_actTranslate);
     transBar->addAction(m_actRotate);
     transBar->addAction(m_actScale);
+    transBar->addAction(m_actDuplicate);
     transBar->addSeparator();
     transBar->addAction(m_actDelete);
 }
@@ -543,6 +600,77 @@ void MainWindow::onChamfer()
         m_occView->fitAll();
         statusBar()->showMessage(tr("Фаска применена (D=%1)").arg(dist));
     }
+}
+
+// ============================================================
+//  Измерения / Массив / Зеркало / Дублирование
+// ============================================================
+
+void MainWindow::onMeasure()
+{
+    int id = requireSelectedShape();
+    if (id < 0) return;
+
+    const ShapeEntry* entry = m_document->findShape(id);
+    if (!entry) return;
+
+    MeasureDialog::show(entry->topoShape, entry->name, this);
+}
+
+void MainWindow::onPattern()
+{
+    int id = requireSelectedShape();
+    if (id < 0) return;
+
+    bool isCircular;
+    int axisIndex, count;
+    double step;
+    if (!PatternDialog::getParameters(isCircular, axisIndex, step, count, this)) return;
+
+    QList<int> ids = m_document->createPattern(id, isCircular, axisIndex, step, count);
+    if (!ids.isEmpty()) {
+        m_occView->fitAll();
+        statusBar()->showMessage(tr("Массив: создано %1 копий").arg(ids.size()));
+    }
+}
+
+void MainWindow::onMirror()
+{
+    int id = requireSelectedShape();
+    if (id < 0) return;
+
+    int plane = MirrorDialog::getPlane(this);
+    if (plane < 0) return;
+
+    int result = m_document->mirrorShape(id, plane);
+    if (result >= 0) {
+        m_occView->fitAll();
+        statusBar()->showMessage(tr("Зеркальная копия создана"));
+    }
+}
+
+void MainWindow::onDuplicate()
+{
+    int id = requireSelectedShape();
+    if (id < 0) return;
+
+    int result = m_document->duplicateShape(id);
+    if (result >= 0) {
+        m_occView->fitAll();
+        statusBar()->showMessage(tr("Фигура дублирована"));
+    }
+}
+
+void MainWindow::onToggleVisibility()
+{
+    if (!m_document) return;
+    int id = m_document->selectedShapeId();
+    if (id < 0) return;
+
+    ShapeEntry* entry = m_document->findShape(id);
+    if (!entry) return;
+
+    m_document->setShapeVisible(id, !entry->visible);
 }
 
 // ============================================================

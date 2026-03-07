@@ -51,6 +51,13 @@ private slots:
     void onFillet();
     void onChamfer();
 
+    // Measure / Pattern / Mirror
+    void onMeasure();
+    void onPattern();
+    void onMirror();
+    void onDuplicate();
+    void onToggleVisibility();
+
     // Delete
     void onDeleteSelected();
 
@@ -114,6 +121,16 @@ private:
     // Fillet/Chamfer actions
     QAction* m_actFillet = nullptr;
     QAction* m_actChamfer = nullptr;
+
+    // Measure / Pattern / Mirror / Duplicate / Visibility
+    QAction* m_actMeasure = nullptr;
+    QAction* m_actPattern = nullptr;
+    QAction* m_actMirror = nullptr;
+    QAction* m_actDuplicate = nullptr;
+    QAction* m_actToggleVisibility = nullptr;
+
+    // Drag state
+    int m_draggedShapeId = -1;
 };
 
 #endif // MAINWINDOW_H

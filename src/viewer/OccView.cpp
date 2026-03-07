@@ -128,13 +128,34 @@ void OccView::mousePressEvent(QMouseEvent* event)
         m_currentAction = CurAction::Pan;
     } else if (event->button() == Qt::LeftButton) {
         m_context->MoveTo(event->pos().x(), event->pos().y(), m_view, Standard_True);
+
         if (event->modifiers() & (Qt::MetaModifier | Qt::ShiftModifier)) {
+            // Multi-select — сразу выделяем, без drag
             m_context->SelectDetected(AIS_SelectionScheme_XOR);
+            emit selectionChanged();
+        } else if (m_context->HasDetected()) {
+            // Есть фигура под курсором — готовимся к возможному drag
+            m_currentAction = CurAction::Drag;
+            m_dragging = false;
+            m_dragShapeId = findShapeIdUnderCursor();
+
+            // Запоминаем 3D-точку начала
+            Standard_Real xv, yv, zv;
+            m_view->Convert(event->pos().x(), event->pos().y(), xv, yv, zv);
+            m_dragPrev3d = gp_Pnt(xv, yv, zv);
         } else {
+            // Пустое место — обычная селекция (снять выделение)
             m_context->SelectDetected(AIS_SelectionScheme_Replace);
+            emit selectionChanged();
         }
-        emit selectionChanged();
     }
+}
+
+int OccView::findShapeIdUnderCursor() const
+{
+    // Возвращает -1 если нет фигуры; ID ищется в MainWindow через сигнал
+    // Здесь возвращаем условный ID=0, реальный ID определяется через Document
+    return 0;
 }
 
 void OccView::mouseMoveEvent(QMouseEvent* event)
@@ -156,14 +177,54 @@ void OccView::mouseMoveEvent(QMouseEvent* event)
         m_clickPos = event->pos();
         break;
     }
+    case CurAction::Drag: {
+        if (!m_dragging) {
+            // Проверяем порог 3px для начала drag
+            if ((event->pos() - m_clickPos).manhattanLength() < 3)
+                break;
+            m_dragging = true;
+            // Выделяем фигуру при начале drag
+            m_context->SelectDetected(AIS_SelectionScheme_Replace);
+            emit selectionChanged();
+            emit dragStarted(m_dragShapeId);
+        }
+
+        // Вычисляем текущую 3D-точку
+        Standard_Real xv, yv, zv;
+        m_view->Convert(event->pos().x(), event->pos().y(), xv, yv, zv);
+        gp_Pnt curr(xv, yv, zv);
+
+        double dx = curr.X() - m_dragPrev3d.X();
+        double dy = curr.Y() - m_dragPrev3d.Y();
+        double dz = curr.Z() - m_dragPrev3d.Z();
+
+        if (qAbs(dx) > 1e-6 || qAbs(dy) > 1e-6 || qAbs(dz) > 1e-6) {
+            emit dragMoved(m_dragShapeId, dx, dy, dz);
+            m_dragPrev3d = curr;
+        }
+        break;
+    }
     case CurAction::Nothing:
         m_context->MoveTo(event->pos().x(), event->pos().y(), m_view, Standard_True);
         break;
     }
 }
 
-void OccView::mouseReleaseEvent(QMouseEvent* /*event*/)
+void OccView::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (m_currentAction == CurAction::Drag) {
+        if (!m_dragging) {
+            // Не было drag — обычный клик → выделяем
+            m_context->SelectDetected(AIS_SelectionScheme_Replace);
+            emit selectionChanged();
+        } else {
+            // Drag завершён
+            emit dragFinished(m_dragShapeId);
+        }
+        m_dragging = false;
+        m_dragShapeId = -1;
+    }
+    Q_UNUSED(event);
     m_currentAction = CurAction::Nothing;
 }
 
