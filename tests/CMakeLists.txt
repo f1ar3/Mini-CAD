@@ -46,3 +46,16 @@ target_link_libraries(tst_FileIO PRIVATE
     TKDESTEP TKDEIGES TKXSBase TKDE
 )
 add_test(NAME tst_FileIO COMMAND tst_FileIO)
+
+# --- tst_Measure ---
+add_executable(tst_Measure
+    tst_Measure.cpp
+)
+target_include_directories(tst_Measure PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(tst_Measure PRIVATE
+    Qt${QT_VERSION_MAJOR}::Test
+    Qt${QT_VERSION_MAJOR}::Widgets
+    TKernel TKMath TKG3d TKBRep TKTopAlgo
+    TKGeomBase TKGeomAlgo TKPrim
+)
+add_test(NAME tst_Measure COMMAND tst_Measure)

@@ -13,6 +13,7 @@ private slots:
     void testClearAll();
     void testMaxHistory();
     void testDescriptions();
+    void testSnapshotTransparencyDisplayMode();
 };
 
 static Snapshot makeTestSnapshot(const QString& desc, int nextId = 1)
@@ -122,6 +123,29 @@ void TestCommandHistory::testDescriptions()
 
     h.pushRedo(makeTestSnapshot("redo_first"));
     QCOMPARE(h.redoDescription(), QString("redo_first"));
+}
+
+void TestCommandHistory::testSnapshotTransparencyDisplayMode()
+{
+    Snapshot s;
+    s.description = "test";
+    s.nextId = 1;
+
+    Snapshot::ShapeData sd;
+    sd.id = 1;
+    sd.name = "Box_1";
+    sd.type = "Box";
+    sd.transparency = 0.5;
+    sd.displayMode = 0;
+    s.shapes.append(sd);
+
+    CommandHistory h;
+    h.pushUndo(s);
+
+    Snapshot popped = h.popUndo();
+    QCOMPARE(popped.shapes.size(), 1);
+    QCOMPARE(popped.shapes[0].transparency, 0.5);
+    QCOMPARE(popped.shapes[0].displayMode, 0);
 }
 
 QTEST_MAIN(TestCommandHistory)
